@@ -1,0 +1,581 @@
+wls2和Docker
+
+https://qiita.com/asahi13/items/46c00f12321f68ef2015
+https://zhuanlan.zhihu.com/p/148511634
+https://zhuanlan.zhihu.com/p/143156163
+https://docs.docker.com/engine/install/ubuntu/
+https://cloud.google.com/spanner/docs/emulator
+
+
+set SPANNER_EMULATOR_HOST=localhost:9010
+
+
+wsl --list --verbose
+
+3.输入以下命令以关闭Linux发行版，然后按Enter：
+
+wsl --shutdown
+
+4.(可选)键入以下命令以确认发行版不再运行，然后按Enter：
+
+wsl --list --verbose
+
+sudo usermod -aG docker $USER
+
+Error response from daemon: Container 1d7dd0a4a999bb6346c58b0eed286573e8139cca1d2854c543f713c2fea220c7 is not running
+分析：
+
+Docker容器后台运行,就必须有一个前台进程。主线程结束，容器会退出。
+所以就加上了 dit 参数，再次运行即可。
+
+docker ps -a                                    #  查看正在运行的镜像
+
+docker rm -f ID                                #　删除之前的运行
+
+docker run --name centos -dit -p 10022:22 centos
+                                                       # 重新运行镜像
+
+docker exec -it centos /bin/bash   # 进入容器
+
+docker ps -a
+docker stop e22fa51f9e69
+docker start e22fa51f9e69
+
+sudo groupadd docker
+sudo usermod -aG docker $USER
+newgrp docker 
+
+docker images
+docker rmi  c26ff7bab91f
+docker ps -a -q
+docker stop $(docker ps -a -q)
+docker rm $(docker ps -a -q)
+
+gradle->maven jar 移动
+task cacheToLocalMavenRepository(type: Copy) {
+  from new File(gradle.gradleUserHomeDir, 'caches/modules-2/files-2.1')
+  into repositories.mavenLocal().url
+  eachFile {
+    List<String> parts = it.path.split('/')
+    it.path = (parts[0]+ '/' + parts[1]).replace('.','/') + '/' + parts[2] + '/' + parts[4]
+  }
+  includeEmptyDirs false
+}
+gradle dedbug
+tasks.withType(JavaExec) { 
+    if (System.getProperty('DEBUG', 'false') == 'true') { 
+     jvmArgs '-Xdebug', '-Xrunjdwp:transport=dt_socket,server=y,suspend=y,address=9099' 
+    } 
+} 
+
+启动中的gradle的bootRun的JVM参数指定为 -DDEBUG=true
+debug中的remote java application里添加一个debug 端口指向9099
+
+
+svn链接时候的ssh降级
+openssl version -d
+You will need the correct permissions to edit the file.
+
+[I like to make a back up of any conf file before editing it so you can easily regress if necessary]
+
+Add to the top of the file:
+
+openssl_conf = default_conf
+At the end of the file, add the following:
+
+[ default_conf ]
+
+ssl_conf = ssl_sect
+
+[ssl_sect]
+
+system_default = ssl_default_sect
+
+[ssl_default_sect]
+MinProtocol = TLSv1
+CipherString = DEFAULT:@SECLEVEL=1
+
+
+minikub配置
+dockerfile 多端口映射 expose
+https://blog.csdn.net/wanglei_storage/article/details/48709255?%3E
+
+使用dockerfile构建nginx镜像
+https://www.cnblogs.com/zhhuihui/p/docker_z.html
+
+K8S Deployment: 镜像从本地拉取
+https://dhcp.cn/k8s/faq/deployment_imagePullPolicy.html#reference
+
+Kubernetes资源对象Pod、ReplicaSet、Deployment、Service之间的关系
+https://blog.csdn.net/u010606397/article/details/90752262
+
+wsl2にminikube
+https://t-sumida.hatenablog.com/entry/2020/12/21/wsl2%E3%81%ABminikube
+
+minikube
+https://minikube.sigs.k8s.io/docs/drivers/docker/
+
+kubernetes Deployment Pod的升级回滚
+https://blog.csdn.net/weixin_40668374/article/details/108336042
+
+
+ sudo apt-get update
+ sudo apt install nginx
+
+docker build -t angular:v1.0 .
+docker run -dit -p 8080:8080 angular:v1.0
+
+docker build -t spring:v1.0 .
+docker run -dit -p 8081:8081 spring:v1.0
+
+
+minikube stop
+minikube start --driver=docker
+eval $(minikube docker-env)
+
+ kubectl apply -f yuanjian.yaml
+ kubectl delete -f yuanjian.yaml
+kubectl get Deployment
+kubectl get pod
+kubectl get service
+kubectl describe pod angular-65fb74d887-5rt82
+minikube dashboard
+minikube ip
+minikube start --extra-config=apiserver.service-node-port-range=1-65535
+minikube service --url service-angular
+【yaml】
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: angular
+spec:
+  selector:
+    matchLabels:
+      app: angular
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: angular
+    spec:
+      containers:
+      - name: angular
+        image: angular:v1.0
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: service-angular
+spec:
+  selector:
+    app: angular
+  type: NodePort
+  ports:
+  - name: http
+    port: 8080
+    nodePort: 30080
+    targetPort: 8080
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: spring
+spec:
+  selector:
+    matchLabels:
+      app: spring
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: spring
+    spec:
+      containers:
+      - name: spring
+        image: spring:v1.0
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 8081
+---
+apiVersion: v1
+kind: Service
+metadata:
+   name: service-spring
+spec:
+  selector:
+    app: spring
+  type: NodePort
+  ports:
+  - name: http
+    port: 8081
+    nodePort: 30081
+    targetPort: 8081
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: spanner
+spec:
+  selector:
+    matchLabels:
+      app: spanner
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: spanner
+    spec:
+      containers:
+      - name: spanner
+        image: gcr.io/cloud-spanner-emulator/emulator:latest
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 9010
+---
+apiVersion: v1
+kind: Service
+metadata:
+   name: service-spanner
+spec:
+  selector:
+    app: spanner
+  type: NodePort
+  ports:
+  - name: grcp
+    port: 9010
+    nodePort: 30091
+    targetPort: 9010
+
+
+【dockerfile】
+FROM ubuntu:latest
+
+RUN apt-get update && apt-get install -y -q nginx
+
+COPY ./conf/server.conf /etc/nginx/conf.d/server.conf
+COPY ./dist /usr/share/nginx/html
+
+EXPOSE 8080
+
+ENTRYPOINT /usr/sbin/nginx -g 'daemon off;' -c /etc/nginx/nginx.conf
+
+【server.conf】
+server {
+    listen       8080;
+    server_name  localhost;
+    root /usr/share/nginx/html/my-app;
+
+    location ~ (favion|runtime|polyfills|styles|vendor|main|scripts).*\.(ico|js|css){
+    add_header Cache-Control "public,max-age=31536000";
+    etag off;
+    }
+
+    location / {
+        #proxy_pass http://172.19.64.1:8080;
+    index index.html;
+    }
+
+    location /api {
+     proxy_pass http://172.17.0.1:8081;
+    }
+
+    location ~* .*index.html{
+    add_header Cache-Control "no-store";
+    etag off;
+    }
+
+    location = /livenss{
+    empty_gif;
+    access_log off;
+    break;
+    }
+    
+    location = /readiness {
+    empty_gif;
+    access_log off;
+    break;
+    }
+
+    error_page   500 502 503 504  /50x.html;
+    location = /50x.html {
+        root   /usr/share/nginx/html;
+    }
+}
+
+【dockerfile】
+FROM openjdk:11
+
+ADD ./build/libs/demo-2-0.0.1-SNAPSHOT.jar /root/demo-2-0.0.1-SNAPSHOT.jar
+
+EXPOSE 8081
+
+ENTRYPOINT ["java","-jar","/root/demo-2-0.0.1-SNAPSHOT.jar"]
+
+
+
+vscod链接wsl2 配置wsl2的命令和安装spanner库的命令
+
+PS C:\Users\yuanjian> Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Windows-Subsystem-Linux
+PS C:\Users\yuanjian> Enable-WindowsOptionalFeature -Online -FeatureName VirtualMachinePlatform
+PS C:\Users\yuanjian> wsl --set-default-version 2
+PS C:\Users\yuanjian> wsl --list --verbose
+PS C:\Users\yuanjian> wsl --list --running
+PS C:\Users\yuanjian> wsl --shutdown
+
+yuanjian@SZ-GADZ050954:~$ history
+    1  sudo passwd
+    2  su
+    3  sudo apt-get install     apt-transport-https     ca-certificates     curl     gnupg     lsb-release
+    4  curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+    5  echo   "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu \
+    6    $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+    7  sudo apt-get update
+    8  apt-cache madison docker-ce
+    9  sudo apt-get install docker-ce=5:20.10.8~3-0~ubuntu-focal docker-ce-cli=5:20.10.8~3-0~ubuntu-focal containerd.io
+   10  sudo docker run hello-world
+   11  sudo service docker start
+   12  yuanjian
+   13  sudo service docker start
+   14  sudo docker run hello-world
+   15  docker pull gcr.io/cloud-spanner-emulator/emulator
+   16  docker run -p 9010:9010 -p 9020:9020 gcr.io/cloud-spanner-emulator/emulator
+   17  sudo service docker start
+   18  docker pull gcr.io/cloud-spanner-emulator/emulator
+   19  su
+   20  docker run -p 9010:9010 -p 9020:9020 gcr.io/cloud-spanner-emulator/emulator
+   21  sudo docker run -p 9010:9010 -p 9020:9020 gcr.io/cloud-spanner-emulator/emulator
+   22  echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | sudo tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
+   23  sudo apt-get install apt-transport-https ca-certificates gnupg
+   24  curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key --keyring /usr/share/keyrings/cloud.google.gpg add -
+   25  sudo apt-get update && sudo apt-get install google-cloud-sdk
+   26  sudo docker run -p 9010:9010 -p 9020:9020 gcr.io/cloud-spanner-emulator/emulator
+   27  su
+   28  sudo passwd
+   29  su
+   30  su root
+   31  history
+   32  docker run -p 9010:9010 -p 9020:9020 gcr.io/cloud-spanner-emulator/emulator
+   33  sudo docker run -p 9010:9010 -p 9020:9020 gcr.io/cloud-spanner-emulator/emulator
+   34  history
+   35  sudo docker run -p 9010:9010 -p 9020:9020 gcr.io/cloud-spanner-emulator/emulator
+   36  history
+   37  sudo service docker start
+   38  sudo docker stats
+   39  sudo docker run -p 9010:9010 -p 9020:9020 gcr.io/cloud-spanner-emulator/emulator
+   40  docker ps -a
+   41  udo docker ps -a
+   42  sudo docker ps -a
+   43  docker d5be99b82a08 exec /bin/bash
+   44  docker exec -h
+   45  docker exec d5be99b82a08  /bin/bash
+   46  sudo docker exec d5be99b82a08  /bin/bash
+   47  docker  -h
+   48  ll
+   49  sudo docker ps -a
+   50  sudo groupadd docker
+   51  sudo usermod -aG docker $USER
+   52  newgrp docker
+   53  docker run hello-world
+   54  docker ps -a --filter "name=modest_moser"
+   55  docker images gcr.io/cloud-spanner-emulator/emulator:latest
+   56  docker ps -a --filter "name=boring_jackson"
+   57  docker ps -a --filter "name=modest_moser"
+   58  docker inspect gcr.io/cloud-spanner-emulator/emulator:latest
+   59  docker inspect modest_moser
+   60  docker images hello-world:latest
+   61  docker images gcr.io/cloud-spanner-emulator/emulator:latest
+   62  docker ps -a --filter "name=eager_meninsky"
+   63  docker ps -a --filter "name=modest_moser"
+   64  docker exec modest_moser docker ps -a --filter "name=modest_moser"
+   65  docker ps -a --filter "name=modest_moser"
+   66  docker attach modest_moser
+   67  sudo service docker start
+   68  sudo docker run -p 9010:9010 -p 9020:9020 gcr.io/cloud-spanner-emulator/emulator
+   69  sudo docker run -p 9010:9010 -p 9020:9020 gcr.io/cloud-spanner-emulator/emulator
+   70  docker ps -a --filter "name=festive_swartz"
+   71  docker ps -a --filter "name=vibrant_ganguly"
+   72  docker start eager_meninsky
+   73  docker ps -a --filter "name=eager_meninsky"
+   74  docker ps -a --filter "name=vibrant_ganguly"
+   75  docker attach festive_swartz
+   76  sudo service docker start
+   77  sudo docker run -p 9010:9010 -p 9020:9020 gcr.io/cloud-spanner-emulator/emulator
+   78  sudo service docker start
+   79  sudo docker run -p 9010:9010 -p 9020:9020 gcr.io/cloud-spanner-emulator/emulator
+   80  eixt
+   81  exit
+   82  docker ps -a --filter "name=hungry_liskov"
+   83  docker inspect hungry_liskov
+   84  sudo service docker start
+   85  sudo docker run -p 9010:9010 -p 9020:9020 gcr.io/cloud-spanner-emulator/emulator
+   86  docker ps -a --filter "name=hungry_liskov"
+   87  sudo service docker start
+   88  sudo docker run -p 9010:9010 -p 9020:9020 gcr.io/cloud-spanner-emulator/emulator
+   89  sudo service docker start
+   90  sudo docker run -p 9010:9010 -p 9020:9020 gcr.io/cloud-spanner-emulator/emulator
+   91  sudo service docker start
+   92  sudo docker run -p 9010:9010 -p 9020:9020 gcr.io/cloud-spanner-emulator/emulator
+   93  docker ps -a
+   94  docker image
+   95  docker images
+   96  docker ps -a
+   97  docker stop e22fa51f9e69
+   98  docker ps -a
+   99  docker start e22fa51f9e69
+  100  docker ps -a
+  101  docker rmi  c26ff7bab91f
+  102  docker rmi  748890d0ec8a
+  103  docker rmi   d1165f221234
+  104  docker stop $(docker ps -a -q)
+  105  docker rm $(docker ps -a -q)
+  106  docker ps -a -q
+  107  docker images
+  108  docker rmi  c26ff7bab91f
+  109  docker images
+  110  docker rmi   d1165f221234
+  111  docker images
+  112  docker rmi   748890d0ec8a
+  113  docker rmi 748890d0ec8a
+  114  docker rmi 748890d0ec8a/latest
+  115  docker rmi 748890d0ec8a/latest/vsc-yuanjian-fb528c461b4a8f16bdab4c0ad048c11f
+  116  docker rmi vsc-yuanjian-fb528c461b4a8f16bdab4c0ad048c11f:latest
+  117  docker images
+  118  docker rmi 748890d0ec8a
+  119  docker images
+  120  history
+  121  sudo service docker start
+  122  sudo docker run -p 9010:9010 -p 9020:9020 gcr.io/cloud-spanner-emulator/emulator
+  123  eixt
+  124  exit
+  125  docker ps -a
+  126  sudo service docker start
+  127  docker ps -a
+  128  docker start e22fa51f9e69
+  129  docker ps -a
+  130  docker images gcr.io/cloud-spanner-emulator/emulator:latest
+  131  docker ps -a --filter "name=vigorous_visvesvaraya"
+  132  history
+  133  apt-get install -y -q nginx
+  134  sudo apt-get install -y -q nginx
+  135  sudo apt install nginx
+  136  sudo apt-get update
+  137  sudo apt install nginx
+  138  pwd
+  139  openssl version -d
+  140  svn
+  141  sudo apt install subversion
+  142  history
+  143  docker build -t angular:1.0 .
+  144  cd my-app/
+  145  docker build -t angular:1.0 .
+  146  ls
+  147  docker build -t angular:1.0 .
+  148  docker images
+  149  docker rmi 0af531b0e1eb
+  150  docker images
+  151  docker build -t angular:v1.0 .
+  152  docker images
+  153  docker run angular:v1.0
+  154  docker rmi 8f01d2acd1d8
+  155  docker build -t angular:v1.0 .
+  156  docker run -dit -p 8080:8080 angular:v1.0
+  157  docker ps -a
+  158  docker run -dit  angular:v1.0
+  159  docker run -dit -p 8080:8080 angular:v1.0
+  160  docker images
+  161  docker rmi 78d316806d44
+  162  docker images
+  163  docker build -t angular:v1.0 .
+  164  history
+  165  java
+  166  cd spring/demo-2/
+  167  docker build -t spring:v1.0 .
+  168  ls
+  169  cd ..
+  170  ls
+  171  cd demo-2/
+  172  ls
+  173  docker build -t spring:v1.0 .
+  174  docker images
+  175  docker run -dit -p 8081:8081 spring:v1.0
+  176  docker rmi 705509d3852c
+  177  docker images
+  178  docker build -t spring:v1.0 .
+  179  docker run -dit -p 8081:8081 spring:v1.0
+  180  docker images
+  181  docker rmi 77e1a9fdba9e
+  182  docker build -t spring:v1.0 .
+  183  docker run -dit -p 8081:8081 spring:v1.0
+  184  ip addr show
+  185  docker ps -a
+  186  ping 172.19.64.1
+  187  iptables --list | grep DOCKER
+  188  docker images
+  189  docker rmi 8ce020341091
+  190  docker build -t spring:v1.0 .
+  191  docker run -dit -p 8081:8081 spring:v1.0
+  192  docker images
+  193  docker rmi 2b9a564ce1a4
+  194  docker build -t angular:v1.0 .
+  195  docker run -dit -p 8080:8080 angular:v1.0
+  196  docker images
+  197  docker rmi a1ccca37686a
+  198  docker ps -a
+  199  docker images
+  200  docker rmi a1ccca37686a
+  201  docker stop 42c70cbbcbb2
+  202  docker rm  42c70cbbcbb2
+  203  docker rmi a1ccca37686a
+  204  docker rmi angular:v1.0
+  205  docker images
+  206  cd //
+  207  cd ..
+  208  docker build -t angular:v1.0 .
+  209  docker run -dit -p 8080:8080 angular:v1.0
+  210  history
+  211  docker images
+  212  docker run -dit -p 8081:8081 spring:v1.0
+  213  docker images
+  214  docker rmi a1ccca37686a
+  215  docker build -t spring:v1.0 .
+  216  docker run -dit -p 8081:8081 spring:v1.0
+  217  curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
+  218  sudo install minikube-linux-amd64 /usr/local/bin/minikube
+  219  minikube
+  220  sudo service docker start
+  221  docker ps -a
+  222  docker images
+  223  minikube start --driver=docker
+  224  docker images
+  225  docker ps -a
+  226  kubectl get node
+  227  minikube config set driver docker
+  228  kubectl get po -A
+  229  chmod +x ./kubectl
+  230  curl -LO "https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl"
+  231  chmod +x ./kubectl
+  232  sudo mv ./kubectl /usr/local/bin/kubectl
+  233  kubectl cluster-info
+  234  kubectl version
+  235  history
+  236  kubectl get node
+  237  exit
+  238  docker images
+  239  sudo service docker start
+  240  docker images
+  241  docker pa -a
+  242  docker ps -a
+  243  docker ps
+  244  docker   rm da5358accd83
+  245  docker   rm bbd42cab0b19
+  246  docker ps
+  247  docker ps -a
+  248  docker images
+  249  history
+
+vscode安装wsl插件和container插件
+通过插件链接container
